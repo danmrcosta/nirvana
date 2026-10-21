@@ -1,5 +1,7 @@
 # Sistema do Dan: Arch + niri
 
+![niri com waybar, nvim e htop](assets/screenshot.png)
+
 Meu ambiente (niri, waybar, alacritty, nvim, rofi…) para instalar em qualquer
 máquina. O instalador detecta sozinho **CPU e GPU (AMD, Intel, NVIDIA ou
 híbrido)** e a **tela**, e ajusta drivers, refresh e escala.
