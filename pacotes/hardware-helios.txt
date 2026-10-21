@@ -1,0 +1,13 @@
+intel-ucode
+linux-zen-headers
+nvidia-open-dkms
+nvidia-utils
+nvidia-settings
+nvidia-prime
+lib32-nvidia-utils
+egl-wayland
+vulkan-intel
+intel-media-driver
+libva-nvidia-driver
+mesa
+lm_sensors
