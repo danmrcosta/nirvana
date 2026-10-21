@@ -63,25 +63,11 @@ input {
 // │ Outputs                                                                     │
 // ╰──────────────────────────────────────────────────────────────────────────────╯
 
-// Tela do Helios Neo 16: IPS 16" 2560x1600 @ 240Hz.
-// Sem refresh no "mode" = o niri escolhe o maior disponível (240Hz).
-// Escala 1.5 → área lógica 1707x1067, mesmo tamanho físico de texto
-// que o 1.25 dava no ThinkPad 14" 1080p.
-// VRR on-demand: só liga em janelas com a window-rule abaixo (jogos),
-// assim o desktop fica sempre cravado em 240Hz.
-// Dependendo do modo da MUX (híbrido/dGPU) a tela pode virar eDP-2,
-// por isso os dois blocos.
-output "eDP-1" {
-    mode "2560x1600"
-    scale 1.5
-    variable-refresh-rate on-demand=true
-}
-
-output "eDP-2" {
-    mode "2560x1600"
-    scale 1.5
-    variable-refresh-rate on-demand=true
-}
+// A tela é configurada por máquina em maquina.kdl, gerado pelo script
+// ~/.local/bin/niri-hardware (detecta resolução, refresh máximo, escala
+// pelo tamanho real da tela e se a GPU é AMD, Intel ou NVIDIA).
+// Trocou de notebook ou de modo da MUX? Rode: niri-hardware
+include "maquina.kdl"
 
 
 // ╭──────────────────────────────────────────────────────────────────────────────╮
