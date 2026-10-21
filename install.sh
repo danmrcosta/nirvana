@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Instala o sistema do Dan (Arch + niri) em qualquer notebook/PC.
+# nirvana — instala o meu Arch + niri em qualquer notebook/PC.
 # Detecta sozinho CPU e GPU (AMD, Intel, NVIDIA ou híbrido) e instala
 # os drivers e ajustes certos. Rodar num Arch recém-instalado, como
 # usuário normal (com sudo):   ./install.sh
@@ -21,7 +21,7 @@ tem() { [[ " $GPUS " == *" $1 "* ]]; }
 NVIDIA=0; tem nvidia && NVIDIA=1
 HIBRIDO=0; if [[ $NVIDIA -eq 1 ]] && { tem intel || tem amd; }; then HIBRIDO=1; fi
 
-echo -e "${B}=== Sistema do Dan (niri) ===${N}"
+echo -e "${B}=== nirvana · Arch + niri ===${N}"
 echo "CPU: $CPU   GPUs: ${GPUS:-nenhuma detectada}   híbrido: $([[ $HIBRIDO -eq 1 ]] && echo sim || echo não)"
 
 # ── 1. pacman.conf: multilib + cor + downloads paralelos ────────────────────
@@ -73,7 +73,7 @@ done < "$DIR/pacotes/flatpak.txt"
 
 # ── 5. Dotfiles (faz backup do que já existir) ──────────────────────────────
 passo "Copiando configs para ~"
-BK="$HOME/.backup-antes-do-sistema-$(date +%F-%H%M)"
+BK="$HOME/.backup-antes-do-nirvana-$(date +%F-%H%M)"
 (cd "$DIR/home" && find . -mindepth 1 \( -type f -o -type l \)) | while read -r f; do
     if [[ -e "$HOME/$f" ]]; then mkdir -p "$BK/$(dirname "$f")"; cp -a "$HOME/$f" "$BK/$f"; fi
 done

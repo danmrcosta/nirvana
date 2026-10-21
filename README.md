@@ -1,4 +1,6 @@
-# Sistema do Dan: Arch + niri
+# nirvana
+
+> Arch + niri do Dan, num comando, em qualquer máquina.
 
 ![niri com waybar, nvim e htop](assets/screenshot.png)
 
