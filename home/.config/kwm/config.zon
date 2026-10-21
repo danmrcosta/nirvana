@@ -1,0 +1,415 @@
+// #############################################################################
+// kwm config.zon — ThinkPad (AMD Ryzen 5 4650U / Radeon Graphics)
+// Layout Scroller simulando navegação estilo Hyprland (dwindle/PaperWM-like).
+//
+// CORREÇÕES FEITAS NESTA VERSÃO (em relação ao seu arquivo original):
+//   1. CONFLITO DE TECLA: "SUPER+D" estava mapeada DUAS vezes — para abrir o
+//      rofi (drun) e para trocar o layout para "deck". Isso fazia uma das
+//      duas ações nunca disparar (dependendo da ordem de parsing). Agora:
+//         SUPER+D        -> abre o rofi (launcher)
+//         SUPER+SHIFT+D  -> troca layout para "deck"
+//   2. WINDOW RULE PERIGOSA: a primeira regra do bloco .window_rules jogava
+//      TODAS as janelas com app_id vazio/nulo para floating. Isso é o que
+//      provavelmente estava "quebrando" seu tiling — muitos clientes (GTK,
+//      Electron, etc.) só definem o app_id depois de abrir, então eles
+//      nasciam flutuando por engano. Removida e substituída por regras
+//      específicas (rofi, zenity, portals, popups do próprio sistema).
+//   3. Organização/comentários revisados para ficar mais fácil de manter.
+//   4. Mantidos 100% os binds que você já tinha: SUPER+Enter (terminal),
+//      navegação HJKL, mover janela com SHIFT+HJKL, tags 1-9/0, resize com
+//      CTRL+H/L, screenshots, volume e brilho.
+//   5. STATUSBAR: removida do .startup_cmds. O FIFO precisa existir ANTES do
+//      kwm subir (senão ele abre a leitura, não acha o pipe e nunca mais
+//      retenta), então agora o mkfifo + o start do statusbar.sh ficam no
+//      ~/.config/river/init, ANTES de "kwm &". Deixar essa linha aqui de
+//      novo faria o script rodar DUAS VEZES (uma pelo init, outra pelo
+//      kwm) e as duas instâncias brigariam escrevendo no mesmo FIFO.
+// #############################################################################
+
+.{
+    // =========================================================================
+    // 1. VARIÁVEIS DE AMBIENTE — Otimizadas para AMD Mesa / Radeon
+    // =========================================================================
+    .env = .{
+        // Drivers de vídeo e aceleração para AMD Graphics (Radeon Vega)
+        .{ "LIBVA_DRIVER_NAME", "radeonsi" },
+        .{ "VDPAU_DRIVER", "radeon" },
+        .{ "AMD_VULKAN_ICD", "RADV" },
+
+        // Session & Wayland Protocols
+        .{ "XDG_SESSION_TYPE", "wayland" },
+        .{ "XDG_CURRENT_DESKTOP", "river" },
+        .{ "XDG_SESSION_DESKTOP", "river" },
+        .{ "QT_QPA_PLATFORM", "wayland" },
+        .{ "MOZ_ENABLE_WAYLAND", "1" },
+
+        // Cursor
+        .{ "XCURSOR_SIZE", "24" },
+    },
+
+    .working_directory = .home,
+
+    // =========================================================================
+    // 2. STARTUP — Exec-once
+    //    ATENÇÃO: confira o nome real do seu output com `wlr-randr` (às vezes
+    //    é eDP-1 em vez de eDP-2). Se o scale 1.5 não aplicar, é por isso.
+    // =========================================================================
+    .startup_cmds = .{
+        .{ "wlr-randr", "--output", "eDP-1", "--scale", "1.25" },
+        .{ "swaybg", "-m", "fill", "-i", "/home/dan/Pictures/upscalemedia-transformed.png" },
+        .{ "gammastep", "-O", "4000" },
+        .{ "hypridle" },
+    },
+
+    .xcursor_theme = null,
+    .background = null,
+
+    // =========================================================================
+    // 3. BARRA INTERNA DO KWM
+    // =========================================================================
+    .bar = .{
+        .show_default = true,
+        .position = .top,
+        .font = "JetBrainsMono Nerd Font:size=10",
+        .scheme = .{
+            .normal = .{ .fg = 0xe0e0e0ff, .bg = 0x000000ff },
+            .select = .{ .fg = 0x000000ff, .bg = 0xe0e0e0ff },
+        },
+        .tags = .{
+            .tags = .{ "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX" },
+            .click = .{
+                .left = .{ .set_output_tag = .{ .tag = .{ .tag = 0 } } },
+                .right = .{ .toggle_output_tag = .{ .mask = 0 } },
+                .middle = .{ .toggle_window_tag = .{ .mask = 0 } },
+            },
+        },
+        .mode = null,
+        .layout = null,
+        .title = null,
+        .status = .{ .fifo = "/home/dan/.cache/kwm/statusbar.fifo" },
+        .override_colors = .{},
+    },
+
+    // =========================================================================
+    // 4. COMPORTAMENTO DE FOCO E NAVEGAÇÃO
+    // =========================================================================
+    .single_tagset = false,
+    .sloppy_focus = false,
+    .cursor_warp = .none,
+    .disable_wrap_around_for_scroller = false,
+    .remember_floating_geometry = true,
+    .auto_swallow = true,
+
+    // .below_focused abre novas janelas logo ao lado/abaixo da atual,
+    // simulando a ramificação padrão do Dwindle do Hyprland.
+    .default_attach_mode = .{
+        .tile = .below_focused,
+        .grid = .top,
+        .monocle = .top,
+        .deck = .stack_top,
+        .scroller = .below_focused,
+        .centered_master = .stack_top,
+        .float = .top,
+    },
+
+    .default_window_decoration = .ssd,
+
+    .border = .{
+        .width = 2,
+        .color = .{
+            .focus = 0x1565C0FF,
+            .unfocus = 0x3A3A3AFF,
+            .swallowing = 0x5a6a8aff,
+        },
+    },
+
+    // =========================================================================
+    // 5. LAYOUT PADRÃO — Grid
+    //    Trocado para .grid porque você curtiu como fica depois de apertar
+    //    SUPER+G. Agora ele já abre nesse layout, sem precisar apertar nada.
+    //    (O layout .scroller continua configurado ali embaixo e disponível
+    //    via SUPER+S, caso queira alternar depois.)
+    //    Gaps reduzidos levemente para aproveitar melhor a tela do notebook.
+    // =========================================================================
+    .default_layout = .grid,
+
+    .layout = .{
+        .scroller = .{
+            .mfact = 0.5,
+            .inner_gap = 5,
+            .outer_gap = 5,
+        },
+        .tile = .{
+            .nmaster = 1,
+            .mfact = 0.55,
+            .inner_gap = 5,
+            .outer_gap = 5,
+            .master_location = .left,
+        },
+        .grid = .{
+            .outer_gap = 5,
+            .inner_gap = 5,
+            .direction = .horizontal,
+        },
+        .monocle = .{
+            .gap = 0,
+        },
+        .deck = .{
+            .nmaster = 1,
+            .mfact = 0.55,
+            .inner_gap = 5,
+            .outer_gap = 5,
+            .master_location = .left,
+        },
+        .centered_master = .{
+            .nmaster = 1,
+            .mfact = 0.55,
+            .inner_gap = 5,
+            .outer_gap = 5,
+            .direction = .horizontal,
+        },
+    },
+
+    // =========================================================================
+    // 6. BINDINGS (Estilo Hyprland)
+    // =========================================================================
+    .bindings = .{
+        .repeat_info = .{
+            .rate = 50,
+            .delay = 250,
+        },
+
+        .key = .{
+            // --- Sistema & Modos ---------------------------------------------
+            .{
+                .keysym = "r",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .reload_config } },
+            },
+            .{
+                .keysym = "Escape",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .switch_mode = .{ .mode = "passthrough" } } } },
+            },
+            .{
+                .mode = "passthrough",
+                .keysym = "Escape",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .switch_mode = .{ .mode = "default" } } } },
+            },
+
+            // --- Apps ----------------------------------------------------------
+            // SUPER+Enter -> terminal (igual Hyprland)
+            .{
+                .keysym = "Return",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .{ .spawn = .{ .argv = .{ "alacritty" } } } } },
+            },
+            // SUPER+D -> launcher (igual Hyprland). Antes conflitava com o
+            // layout "deck", que foi movido para SUPER+SHIFT+D.
+            .{
+                .keysym = "d",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .{ .spawn_shell = .{ .cmd = "rofi -show drun" } } } },
+            },
+            // SUPER+E -> gerenciador de arquivos (igual Hyprland)
+            .{
+                .keysym = "e",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .{ .spawn = .{ .argv = .{ "pcmanfm" } } } } },
+            },
+
+            // --- Gerenciamento de Janelas ---------------------------------------
+            .{
+                .keysym = "q",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .close } },
+            },
+            // SUPER+SHIFT+E -> sair da sessão (igual Hyprland)
+            .{
+                .keysym = "e",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .quit = .{ .exit_session = true, .hook = null } } } },
+            },
+            .{
+                .keysym = "f",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .toggle_maximize } },
+            },
+            .{
+                .keysym = "f",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .toggle_fullscreen = .{ .in_window = false } } } },
+            },
+            .{
+                .keysym = "space",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .toggle_floating } },
+            },
+
+            // --- FOCO DIRECIONAL (equivalente ao movefocus do Hyprland) --------
+            // No scroller (layout 1D, tipo trilho), H/K andam "para trás" e
+            // L/J andam "para frente" na fila de janelas — por isso H se
+            // comporta como K, e L como J. É a aproximação mais próxima que
+            // o scroller permite de uma navegação direcional tipo dwindle.
+            .{
+                .keysym = "h",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .{ .focus_iter = .{ .direction = .reverse } } } },
+            },
+            .{
+                .keysym = "l",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .{ .focus_iter = .{ .direction = .forward } } } },
+            },
+            .{
+                .keysym = "k",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .{ .focus_iter = .{ .direction = .reverse } } } },
+            },
+            .{
+                .keysym = "j",
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .click = .{ .pressed = .{ .focus_iter = .{ .direction = .forward } } } },
+            },
+
+            // --- MOVER JANELA (equivalente ao movewindow do Hyprland) ----------
+            .{
+                .keysym = "h",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .swap = .{ .direction = .reverse } } } },
+            },
+            .{
+                .keysym = "l",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .swap = .{ .direction = .forward } } } },
+            },
+            .{
+                .keysym = "k",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .swap = .{ .direction = .reverse } } } },
+            },
+            .{
+                .keysym = "j",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .swap = .{ .direction = .forward } } } },
+            },
+
+            // Redimensionar janela ativa no scroller (eixo horizontal)
+            .{
+                .keysym = "l",
+                .modifiers = .{ .mod4 = true, .ctrl = true },
+                .event = .{ .click = .{ .pressed = .{ .modify_mfact = .{ .change = .{ .step = 0.02 } } } } },
+            },
+            .{
+                .keysym = "h",
+                .modifiers = .{ .mod4 = true, .ctrl = true },
+                .event = .{ .click = .{ .pressed = .{ .modify_mfact = .{ .change = .{ .step = -0.02 } } } } },
+            },
+
+            // --- Tags / Workspaces (1-9, 0 = todas) -----------------------------
+            .{ .keysym = "1", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b1 } } } } } },
+            .{ .keysym = "2", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b10 } } } } } },
+            .{ .keysym = "3", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b100 } } } } } },
+            .{ .keysym = "4", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b1000 } } } } } },
+            .{ .keysym = "5", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b10000 } } } } } },
+            .{ .keysym = "6", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b100000 } } } } } },
+            .{ .keysym = "7", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b1000000 } } } } } },
+            .{ .keysym = "8", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b10000000 } } } } } },
+            .{ .keysym = "9", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b100000000 } } } } } },
+            .{ .keysym = "0", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .set_output_tag = .{ .tag = .{ .tag = 0b111111111 } } } } } },
+
+            .{ .keysym = "1", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b1 } } } } } },
+            .{ .keysym = "2", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b10 } } } } } },
+            .{ .keysym = "3", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b100 } } } } } },
+            .{ .keysym = "4", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b1000 } } } } } },
+            .{ .keysym = "5", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b10000 } } } } } },
+            .{ .keysym = "6", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b100000 } } } } } },
+            .{ .keysym = "7", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b1000000 } } } } } },
+            .{ .keysym = "8", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b10000000 } } } } } },
+            .{ .keysym = "9", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b100000000 } } } } } },
+            .{ .keysym = "0", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .set_window_tag = .{ .tag = .{ .tag = 0b111111111 } } } } } },
+
+            .{ .keysym = "Tab", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .switch_to_previous_tag } } },
+
+            // --- Layouts ---------------------------------------------------------
+            .{ .keysym = "s", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .switch_layout = .{ .layout = .scroller } } } } },
+            .{ .keysym = "t", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .switch_layout = .{ .layout = .tile } } } } },
+            .{ .keysym = "g", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .switch_layout = .{ .layout = .grid } } } } },
+            // Movido de SUPER+D para SUPER+SHIFT+D para não conflitar com o rofi
+            .{ .keysym = "d", .modifiers = .{ .mod4 = true, .shift = true }, .event = .{ .click = .{ .pressed = .{ .switch_layout = .{ .layout = .deck } } } } },
+            .{ .keysym = "m", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .{ .switch_layout = .{ .layout = .monocle } } } } },
+            .{ .keysym = "grave", .modifiers = .{ .mod4 = true }, .event = .{ .click = .{ .pressed = .switch_to_previous_layout } } },
+
+            // --- Screenshots & Mídia ----------------------------------------------
+            .{
+                .keysym = "Print",
+                .modifiers = .{},
+                .event = .{ .click = .{ .pressed = .{ .spawn = .{ .argv = .{ "sh", "-c", "$HOME/.config/kwm/scripts/screenshot-full.sh" } } } } },
+            },
+            .{
+                .keysym = "s",
+                .modifiers = .{ .mod4 = true, .shift = true },
+                .event = .{ .click = .{ .pressed = .{ .spawn = .{ .argv = .{ "sh", "-c", "$HOME/.config/kwm/scripts/screenshot-select.sh" } } } } },
+            },
+            .{
+                .keysym = "XF86AudioRaiseVolume",
+                .modifiers = .{},
+                .event = .{ .repeat = .{ .spawn = .{ .argv = .{ "wpctl", "set-volume", "-l", "1.0", "@DEFAULT_AUDIO_SINK@", "5%+" } } } },
+            },
+            .{
+                .keysym = "XF86AudioLowerVolume",
+                .modifiers = .{},
+                .event = .{ .repeat = .{ .spawn = .{ .argv = .{ "wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-" } } } },
+            },
+            .{
+                .keysym = "XF86AudioMute",
+                .modifiers = .{},
+                .event = .{ .click = .{ .pressed = .{ .spawn = .{ .argv = .{ "wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle" } } } } },
+            },
+            .{
+                .keysym = "XF86MonBrightnessUp",
+                .modifiers = .{},
+                .event = .{ .repeat = .{ .spawn = .{ .argv = .{ "brightnessctl", "set", "5%+" } } } },
+            },
+            .{
+                .keysym = "XF86MonBrightnessDown",
+                .modifiers = .{},
+                .event = .{ .repeat = .{ .spawn = .{ .argv = .{ "brightnessctl", "set", "5%-" } } } },
+            },
+        },
+
+        .pointer = .{
+            .{
+                .mode = "default",
+                .button = .left,
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .pressed = .pointer_move },
+            },
+            .{
+                .mode = "default",
+                .button = .right,
+                .modifiers = .{ .mod4 = true },
+                .event = .{ .pressed = .pointer_resize },
+            },
+        },
+    },
+
+    // =========================================================================
+    // 7. WINDOW RULES
+    //    A regra que jogava TODA janela sem app_id para floating foi
+    //    removida — ela era a causa mais provável do tiling se comportar
+    //    de forma inconsistente. Agora só flutuam os popups/diálogos que
+    //    realmente devem flutuar.
+    // =========================================================================
+    .window_rules = .{
+        .{ .app_id = .{ .str = "xdg-desktop-portal-gtk" }, .floating = true },
+        .{ .app_id = .{ .str = "zenity" }, .floating = true },
+        .{ .app_id = .{ .str = "rofi" }, .floating = true },
+        .{ .app_id = .{ .str = "pavucontrol" }, .floating = true },
+        .{ .app_id = .{ .str = "Alacritty" }, .is_terminal = true, .scroller_mfact = 0.5 },
+    },
+
+    .output_rules = .{},
+    
+}

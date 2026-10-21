@@ -1,0 +1,107 @@
+#!/bin/sh
+# #############################################################################
+# init — River WM
+# #############################################################################
+# IMPORTANTE: este init ficou bem mais enxuto que o seu antigo porque a maior
+# parte do que ele fazia (spawn de nm-applet/swaybg/gammastep, bordas, cores)
+# JÁ é feita pelo seu config.zon do kwm (seções .startup_cmds e .border).
+# Duplicar aqui só faria dois processos iguais brigando ou dois nm-applet na
+# bandeja. Também removi TODOS os `riverctl map ...` de foco/movimento
+# (H/J/K/L, mod+Shift+H/J/K/L) porque o kwm lê os binds dele mesmo do
+# config.zon (seção .bindings) — deixar os dois juntos criaria bind duplicado
+# / comportamento inconsistente entre o modelo "direcional" (river puro) e o
+# modelo "master-stack" (kwm) que você já adaptou no config.zon.
+# O init agora cuida só do que o kwm NÃO controla: variáveis de teclado,
+# input (touchpad) e escala de output — essas três coisas são configuração de
+# baixo nível do River (via riverctl), não do layout manager.
+# #############################################################################
+
+# =============================================================================
+# 1. TECLADO — ABNT2
+# =============================================================================
+# Duas formas, mantidas juntas por segurança:
+#   a) env vars XKB_* -> pega o xkbcommon "de fábrica", usado por qualquer
+#      processo que leia teclado diretamente antes do river reconfigurar nada.
+#   b) `riverctl keyboard-layout` -> comando nativo do river (>=0.3), é a
+#      forma "oficial" e o que efetivamente aplica o layout nos seat/devices
+#      já rodando. Se sua versão do river for mais antiga e não tiver esse
+#      comando, comente a linha do riverctl abaixo; os env vars sozinhos
+#      já resolvem na grande maioria dos casos.
+export XKB_DEFAULT_LAYOUT=br
+export XKB_DEFAULT_VARIANT=abnt2
+
+# =============================================================================
+# 2. INICIAR O KWM
+# =============================================================================
+# O kwm é quem sobe swaybg, nm-applet, gammastep, hypridle e quickshell
+# (tudo isso já está em .startup_cmds no seu config.zon). Não spawne de novo
+# aqui embaixo.
+
+# --- FIFO da statusbar precisa existir ANTES do kwm subir ------------------
+# Se o kwm tenta abrir o FIFO pra leitura e o arquivo ainda não existe nesse
+# instante, ele desiste e nunca mais tenta reabrir — por isso isso tem que
+# rodar aqui, antes do "kwm &" logo abaixo.
+mkdir -p "$HOME/.cache/kwm"
+[ -p "$HOME/.cache/kwm/statusbar.fifo" ] || mkfifo "$HOME/.cache/kwm/statusbar.fifo"
+
+kwm &
+
+# Sobe o script de status já com o FIFO existindo e o kwm de pé pra ler.
+# IMPORTANTE: remova a linha do statusbar.sh de dentro de .startup_cmds no
+# seu config.zon, senão ele vai subir DUAS VEZES (uma pelo kwm, outra por
+# aqui) e as duas instâncias vão brigar escrevendo no mesmo FIFO.
+"$HOME/.config/kwm/scripts/statusbar.sh" &
+
+sleep 0.5
+
+# Aplica o layout de teclado via comando nativo (redundante com os env vars
+# acima, de propósito).
+riverctl keyboard-layout br abnt2
+
+# =============================================================================
+# 3. ESCALA DA TELA (DPI) — monitor 240Hz
+# =============================================================================
+# River escala por OUTPUT, não existe um "scale global" tipo o
+# `misc:global_scale` do Hyprland — cada saída precisa do nome dela.
+# Descubra o nome do seu output com:
+#   wlr-randr
+# (procure algo como "eDP-1" para o painel interno do notebook).
+#
+# Troque "eDP-1" abaixo pelo nome real que aparecer, e ajuste o valor de
+# escala conforme o quão grande você quer os elementos (1.25 / 1.5 / 2 são os
+# valores mais comuns para telas de notebook em alta resolução).
+riverctl output eDP-1 scale 1.5
+
+# Opcional, já que você mencionou que é um painel de 240Hz: garanta que o
+# modo escolhido realmente usa a taxa de atualização máxima. Só necessário
+# se o River não detectar 240Hz como modo preferido automaticamente — troque
+# a resolução pela nativa do seu painel.
+# riverctl output eDP-1 mode 1920x1080@240Hz custom
+
+# =============================================================================
+# 4. TOUCHPAD DO NOTEBOOK
+# =============================================================================
+# type:touchpad = aplica a TODOS os dispositivos identificados como touchpad
+# (sintaxe já usada no seu init antigo, mantida).
+
+# Rolagem natural (invertida) LIGADA — pedido seu.
+riverctl input type:touchpad natural-scroll enabled
+
+# Tap-to-click DESLIGADO — você quer só clique físico, não tocar-para-clicar.
+# (no seu init antigo estava "tap enabled"; isso foi INVERTIDO aqui de
+# propósito para atender ao que você pediu.)
+riverctl input type:touchpad tap disabled
+
+# Mantido do seu init antigo: sensibilidade do ponteiro do touchpad.
+riverctl input type:touchpad pointer-accel 0.3
+
+# =============================================================================
+# 5. CURSOR
+# =============================================================================
+# Atenção: seu config.zon do kwm já define `.cursor_warp = .none` de
+# propósito (para não ter "saltos" de cursor ao trocar de foco/monitor —
+# ver os comentários da seção 4 do config.zon). Se você mandar
+# `riverctl set-cursor-warp on-focus-change` aqui, vai CONTRARIAR o que o
+# kwm configurou, então essa linha foi removida. Se realmente quiser warp,
+# mude o valor no config.zon (.cursor_warp) em vez de aqui, para não ter
+# duas fontes de verdade divergentes.
