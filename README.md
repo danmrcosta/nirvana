@@ -6,7 +6,7 @@ Meu ambiente (niri, waybar, alacritty, nvim, rofi…) para instalar em qualquer
 máquina. O instalador detecta sozinho **CPU e GPU (AMD, Intel, NVIDIA ou
 híbrido)** e a **tela**, e ajusta drivers, refresh e escala.
 
-Testado para: ThinkPad (AMD Renoir, 14" 1080p) e Acer Predator Helios Neo 16
+Feito para: ThinkPad (AMD Renoir, 14" 1080p) e Acer Predator Helios Neo 16
 (Intel HX + RTX 4070, 16" 2560x1600 @ 240Hz, MUX).
 
 ## Como usar
