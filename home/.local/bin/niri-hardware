@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# Detecta o hardware desta máquina e gera ~/.config/niri/maquina.kdl
+# (tela interna: resolução, maior refresh, escala pelo DPI real, VRR).
+#
+#   niri-hardware          gera o maquina.kdl
+#   niri-hardware gpus     só imprime as GPUs encontradas (amd intel nvidia)
+#   niri-hardware cpu      só imprime o fabricante da CPU (amd / intel)
+set -euo pipefail
+
+gpus() {
+    local d v out=()
+    for d in /sys/bus/pci/devices/*; do
+        [[ $(cat "$d/class") == 0x03* ]] || continue
+        v=$(cat "$d/vendor")
+        case $v in
+            0x1002) out+=(amd) ;;
+            0x8086) out+=(intel) ;;
+            0x10de) out+=(nvidia) ;;
+        esac
+    done
+    printf '%s\n' "${out[@]}" | sort -u | tr '\n' ' ' | sed 's/ $//'
+}
+
+cpu() {
+    case $(grep -m1 vendor_id /proc/cpuinfo) in
+        *AuthenticAMD*) echo amd ;;
+        *GenuineIntel*) echo intel ;;
+        *) echo outro ;;
+    esac
+}
+
+case ${1:-} in
+    gpus) gpus; exit ;;
+    cpu)  cpu;  exit ;;
+esac
+
+OUT="$HOME/.config/niri/maquina.kdl"
+mkdir -p "$(dirname "$OUT")"
+GPUS=$(gpus)
+
+# Escala a partir do DPI: ~125 dpi = 1.0. Arredonda em passos de 0.25.
+# ThinkPad 14" 1080p (157 dpi) → 1.25 · Helios 16" 1600p (188 dpi) → 1.5
+escala() {
+    local w_px=$1 w_cm=$2
+    awk -v px="$w_px" -v cm="$w_cm" 'BEGIN {
+        if (cm <= 0) {   # sem tamanho no EDID: chuta pela largura
+            print (px >= 3840 ? 2 : px >= 2560 ? 1.5 : px >= 1920 ? 1.25 : 1); exit }
+        s = int((px / (cm / 2.54)) / 125 * 4 + 0.5) / 4
+        if (s < 1) s = 1; if (s > 3) s = 3
+        print s }'
+}
+
+bloco() {   # nome resolução escala
+    cat <<EOF
+output "$1" {
+    mode "$2"
+    scale $3
+    variable-refresh-rate on-demand=true
+}
+
+EOF
+}
+
+{
+    echo "// Gerado por niri-hardware em $(date '+%F %H:%M') — não edite à mão,"
+    echo "// rode 'niri-hardware' de novo (ou apague este arquivo para o niri decidir)."
+    echo "// CPU: $(cpu) · GPUs: ${GPUS:-?}"
+    echo "//"
+    echo "// mode sem refresh = o niri escolhe o maior disponível (ex.: 240Hz)."
+    echo "// VRR on-demand = só liga nas janelas com a window-rule de jogos."
+    echo
+
+    feitos=()
+    for c in /sys/class/drm/card*-eDP-*; do
+        [[ -e $c/modes ]] || continue
+        nome=${c##*/}; nome=${nome#card*-}
+        res=$(head -n1 "$c/modes")
+        [[ -n $res ]] || continue
+        cm=0
+        if [[ -r $c/edid ]]; then cm=$(od -An -tu1 -j21 -N1 "$c/edid" 2>/dev/null | tr -d ' '); fi
+        cm=${cm:-0}
+        esc=$(escala "${res%x*}" "$cm")
+        echo "// $nome: ${res}, ${cm} cm de largura"
+        bloco "$nome" "$res" "$esc"
+        feitos+=("$nome:$res:$esc")
+    done
+
+    # Notebook com NVIDIA + MUX: ao trocar híbrido ⇄ dGPU a tela pode
+    # mudar de eDP-1 para eDP-2 (ou o contrário). Cobre os dois nomes.
+    if [[ $GPUS == *nvidia* && ${#feitos[@]} -eq 1 ]]; then
+        IFS=: read -r n r e <<<"${feitos[0]}"
+        outro=$([[ $n == eDP-1 ]] && echo eDP-2 || echo eDP-1)
+        echo "// mesmo painel quando a MUX troca de GPU"
+        bloco "$outro" "$r" "$e"
+    fi
+
+    if [[ ${#feitos[@]} -eq 0 ]]; then
+        echo "// Nenhuma tela interna detectada: o niri usa o modo/escala automáticos."
+    fi
+} > "$OUT"
+
+echo "Gerado $OUT  (CPU: $(cpu), GPUs: ${GPUS:-?})"
