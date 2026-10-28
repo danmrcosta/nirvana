@@ -106,6 +106,10 @@ BK="$HOME/.backup-antes-do-nirvana-$(date +%F-%H%M)"
 (cd "$DIR/home" && find . -mindepth 1 \( -type f -o -type l \)) | while read -r f; do
     if [[ -e "$HOME/$f" ]]; then mkdir -p "$BK/$(dirname "$f")"; cp -a "$HOME/$f" "$BK/$f"; fi
 done
+# atalhos quebrados (ex.: de um setup antigo) impediriam a cópia
+(cd "$DIR/home" && find . -mindepth 1) | while read -r f; do
+    if [[ -L $HOME/$f && ! -e $HOME/$f ]]; then echo "removendo atalho quebrado ~/${f#./}"; rm -f "$HOME/$f"; fi
+done
 cp -a "$DIR/home/." "$HOME/"
 chmod +x "$HOME"/.local/bin/*
 mkdir -p "$HOME/Pictures/Screenshots"

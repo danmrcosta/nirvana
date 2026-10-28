@@ -1,0 +1,65 @@
+# Comentado o import antigo para não dar conflito de cores
+# import = ["~/.config/alacritty/themes/catppuccin_mocha.toml"]
+
+[window]
+opacity = 1.0  # Monitores antigos eram 100% sólidos
+blur = false   # Sem firulas modernas de desfoque
+padding = { x = 12, y = 12 } 
+
+[colors.primary]
+# Um cinza-grafite escuro industrial (o famoso "Dark Charcoal" das interfaces antigas)
+background = '#242526' 
+
+# O cinza-claro clássico do Retroism, mas agora usado no texto
+foreground = '#c0c0c0' 
+
+[colors.cursor]
+# Cursor em bloco cinza-claro, bem anos 90
+text = '#242526'
+cursor = '#c0c0c0'
+
+[colors.selection]
+# A seleção de texto usa aquele azul-marinho clássico de sistema operacional antigo
+background = '#000080'
+text = '#ffffff'
+
+# Paleta ANSI adaptada para o "Retroism Dark" (Cores sólidas e menos saturadas)
+[colors.normal]
+black = '#242526'
+red = '#a83232'
+green = '#32a852'
+yellow = '#a8a832'
+blue = '#3252a8'
+magenta = '#a832a8'
+cyan = '#32a8a8'
+white = '#c0c0c0'
+
+[colors.bright]
+black = '#5c5c5c'
+red = '#ff5555'
+green = '#55ff55'
+yellow = '#ffff55'
+blue = '#5555ff'
+magenta = '#ff55ff'
+cyan = '#55ffff'
+white = '#ffffff'
+
+[font]
+size = 16.0
+
+[font.bold]
+family = "JetBrainsMono Nerd Font"
+style = "Bold"
+
+[font.italic]
+family = "JetBrainsMono Nerd Font"
+style = "Italic"
+
+[font.normal]
+family = "JetBrainsMono Nerd Font"
+style = "Regular"
+
+[[keyboard.bindings]]
+key = "Return"
+mods = "Shift"
+chars = "\u001B\r"
