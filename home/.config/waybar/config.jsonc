@@ -5,7 +5,7 @@
     "spacing": 0,
     "modules-left": ["niri/workspaces"],
     "modules-center": ["clock"],
-    "modules-right": ["battery"],
+    "modules-right": ["tray", "battery"],
     "niri/workspaces": {
         "on-click": "activate",
         "all-outputs": false,
@@ -25,6 +25,11 @@
     "clock": {
         "format": "{:%H:%M — %d/%m/%Y}",
         "tooltip-format": "{:%A, %d de %B de %Y}"
+    },
+    "tray": {
+        "icon-size": 14,
+        "spacing": 8,
+        "show-passive-items": true
     },
     "battery": {
         "format": "{capacity}% {icon}",
