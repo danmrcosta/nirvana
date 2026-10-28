@@ -13,8 +13,12 @@ Feito para: ThinkPad (AMD Renoir, 14" 1080p) e Acer Predator Helios Neo 16
 
 ## Como usar
 
-1. Instale um Arch limpo (`archinstall`): kernel **linux-zen**, rede
-   **NetworkManager**, seu usuário com sudo, perfil **Minimal**.
+1. Instale o Arch (`archinstall`) com rede **NetworkManager** e seu usuário
+   com sudo. O ideal é o perfil **Minimal**, mas se você já escolheu um
+   perfil de desktop (KDE, GNOME…) ou o driver NVIDIA do archinstall, tudo
+   bem: o instalador troca os pacotes que conflitam (`power-profiles-daemon`,
+   `pulseaudio`, `jack2`, drivers `nvidia*`) e desativa o login gráfico
+   antigo (sddm, gdm, lightdm…) para o ly assumir.
 2. Copie esta pasta (pendrive, git clone, etc.) e rode:
    ```bash
    ./install.sh
@@ -56,6 +60,10 @@ recarrega sozinho). Outros comandos: `niri-hardware gpus`, `niri-hardware cpu`.
 Não vêm: Downloads, Pictures, Documents, Projects, perfil do Firefox.
 
 ## Se algo não funcionar
+
+- **O instalador parou no meio**: tudo fica salvo em `~/nirvana-install-<data>.log`
+  e a mensagem final diz a linha. Pode rodar `./install.sh` de novo: ele
+  continua de onde dá, sem estragar o que já fez.
 
 - **Brilho não muda (NVIDIA)**: adicione `acpi_backlight=nvidia_wmi_ec` aos
   parâmetros do kernel (`/boot/loader/entries/*.conf`).

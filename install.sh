@@ -14,6 +14,14 @@ aviso() { echo -e "${Y}!! $*${N}"; }
 [[ $EUID -eq 0 ]] && { echo "Rode como seu usuário, não como root."; exit 1; }
 [[ -f /etc/arch-release ]] || { echo "Isto é para Arch Linux."; exit 1; }
 
+# Tudo que aparece na tela também vai para um log, para achar erros depois
+LOG="$HOME/nirvana-install-$(date +%F-%H%M).log"
+exec > >(tee -a "$LOG") 2>&1
+trap 'echo -e "\n\033[0;31m!! Parou na linha $LINENO. Log completo: $LOG\033[0m"' ERR
+
+instalado() { [[ $(pacman -Qq "$1" 2>/dev/null) == "$1" ]]; }
+ativo() { systemctl is-enabled "$1" &>/dev/null; }
+
 # ── 0. Hardware ──────────────────────────────────────────────────────────────
 CPU=$(bash "$HW" cpu)
 GPUS=$(bash "$HW" gpus)
@@ -52,6 +60,27 @@ if grep -qsxE '06cb|27c6|138a|10a5|2808|1c7a|04f3' /sys/bus/usb/devices/*/idVend
 fi
 mapfile -t PKGS < <(printf '%s\n' "${PKGS[@]}" | sort -u)
 echo "${#PKGS[@]} pacotes."
+
+# Se o Arch foi instalado com um perfil de desktop (KDE, GNOME…) ou com o
+# driver NVIDIA do archinstall, há pacotes que conflitam com os do nirvana.
+# Com --noconfirm o pacman recusa a troca e para tudo; então removemos antes
+# (-dd: os substitutos abaixo fornecem o mesmo, nada fica quebrado).
+passo "Resolvendo conflitos com o que já está instalado"
+TROCAR=()
+for p in power-profiles-daemon pulseaudio pulseaudio-bluetooth jack2; do
+    instalado "$p" && TROCAR+=("$p")
+done
+if [[ $NVIDIA -eq 1 ]]; then
+    for p in nvidia nvidia-lts nvidia-dkms nvidia-open nvidia-open-lts; do
+        instalado "$p" && TROCAR+=("$p")
+    done
+fi
+if [[ ${#TROCAR[@]} -gt 0 ]]; then
+    echo "Trocando: ${TROCAR[*]}"
+    sudo pacman -Rdd --noconfirm "${TROCAR[@]}"
+else
+    echo "Nenhum conflito."
+fi
 sudo pacman -Syu --needed --noconfirm "${PKGS[@]}"
 
 # ── 3. Paru + AUR ────────────────────────────────────────────────────────────
@@ -107,11 +136,18 @@ sudo mkinitcpio -P
 # Idioma e fuso
 sudo sed -i -E 's/^#(en_US.UTF-8 UTF-8)/\1/; s/^#(pt_BR.UTF-8 UTF-8)/\1/' /etc/locale.gen
 sudo locale-gen
-printf 'LANG=en_US.UTF-8\nLC_ALL=en_US.UTF-8\n' | sudo tee /etc/locale.conf >/dev/null
+printf 'LANG=en_US.UTF-8\n' | sudo tee /etc/locale.conf >/dev/null
 sudo timedatectl set-timezone America/Sao_Paulo || true
 
 # ── 7. Serviços ──────────────────────────────────────────────────────────────
 passo "Ativando serviços"
+# Desliga o que o perfil do archinstall possa ter ativado e que brigaria
+# com o nirvana: outro login gráfico, outro firewall, outra rede.
+for s in sddm gdm lightdm lxdm greetd display-manager firewalld \
+         systemd-networkd wpa_supplicant power-profiles-daemon; do
+    if ativo "$s"; then echo "desativando $s"; sudo systemctl disable "$s" || true; fi
+done
+sudo rm -f /etc/systemd/system/display-manager.service
 sudo systemctl enable NetworkManager bluetooth tuned ufw lm_sensors fstrim.timer systemd-timesyncd
 sudo systemctl disable getty@tty1 2>/dev/null || true
 sudo systemctl enable ly@tty1
@@ -119,3 +155,4 @@ sudo ufw default deny incoming && sudo ufw enable || true
 sudo sensors-detect --auto >/dev/null 2>&1 || true
 
 echo -e "\n${B}=== Pronto! Reinicie (sudo reboot) e entre no niri pelo ly. ===${N}"
+echo "Log: $LOG"
