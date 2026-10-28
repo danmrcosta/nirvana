@@ -1,0 +1,2 @@
+# notificações somem sozinhas depois de 5 segundos
+default-timeout=5000

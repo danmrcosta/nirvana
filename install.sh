@@ -116,6 +116,10 @@ mkdir -p "$HOME/Pictures/Screenshots"
 xdg-user-dirs-update || true
 if [[ -d $BK ]]; then echo "Backup dos arquivos antigos: $BK"; fi
 
+# sem aviso "Connection Established" do nm-applet ao conectar/desconectar
+gsettings set org.gnome.nm-applet disable-connected-notifications true || true
+gsettings set org.gnome.nm-applet disable-disconnected-notifications true || true
+
 passo "Gerando config da tela (niri-hardware)"
 "$HOME/.local/bin/niri-hardware"
 niri validate >/dev/null 2>&1 && echo "config do niri válida" || aviso "rode 'niri validate' para ver o erro"
