@@ -157,6 +157,10 @@ cursor {
 // Sua Waybar.
 spawn-at-startup "waybar"
 
+// Área de transferência: guarda tudo que for copiado (texto e imagens)
+// para o histórico do Super+V. Limpar: cliphist wipe
+spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
+
 // Seu wallpaper.
 spawn-at-startup "sh" "-c" "swaybg -m fill -i ~/.local/share/wallpapers/walpaper2.jpeg"
 
@@ -247,6 +251,11 @@ binds {
     // Rofi em vez do Fuzzel padrão.
     Super+D {
         spawn "rofi" "-show" "drun"
+    }
+
+    // Histórico da área de transferência (cliphist): escolhe e já copia.
+    Super+V {
+        spawn "sh" "-c" "cliphist list | rofi -dmenu -p 'copiados' | cliphist decode | wl-copy"
     }
 
     // Seu Super + E

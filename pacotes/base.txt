@@ -6,6 +6,7 @@ bash-completion
 bluez
 bluez-utils
 brightnessctl
+cliphist
 efibootmgr
 file-roller
 firefox

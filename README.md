@@ -25,6 +25,11 @@ Feito para: ThinkPad (AMD Renoir, 14" 1080p) e Acer Predator Helios Neo 16
    ```
 3. Reinicie e entre no **niri** pelo ly.
 
+## Atalhos úteis
+
+- **Super+V**: histórico do que foi copiado (texto e imagens, via `cliphist`).
+  Escolha um item e ele volta para a área de transferência. Limpar: `cliphist wipe`.
+
 ## O que o instalador decide pelo hardware
 
 | Detectou | Instala / configura |
